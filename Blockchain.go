@@ -1,45 +1,60 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 )
 
 type Blockchain struct {
-	blocks []*Block
+	Blocks []*Block
 }
 
 type Block struct {
-	previousHash int64
-	hash         int64
-	timestamp    time.Time
-	content      string
+	PreviousHash []byte
+	Hash         []byte
+	Content      string
+	Timestamp    int64
 }
 
 func (b *Block) generateHash() {
-	hash := sha256.Sum256([]byte{
-		byte(b.previousHash),
-		byte(b.timestamp.Unix()),
-		byte(b.content),
-	})
-	b.hash = hash
-}
-func (b *Blockchain) createGenesis() {
-	genesis := new(Block)
-	genesis.previousHash = 0
-	genesis.hash = 123
-	genesis.timestamp = time.Now()
-	b.blocks = []*Block{genesis}
+	block_bytes := bytes.Join([][]byte{
+		b.PreviousHash,
+		[]byte(strconv.FormatInt(b.Timestamp, 10)),
+		[]byte(b.Content),
+	}, []byte{})
+	h := sha256.Sum256(block_bytes)
+	b.Hash = h[:]
 }
 
-func makeBlockchain() *Blockchain {
+func NewBlock(content string, prevBlockHash []byte) *Block {
+	block := new(Block)
+	block.Content = content
+	block.PreviousHash = prevBlockHash
+	block.Timestamp = time.Now().Unix()
+
+	block.generateHash()
+	return block
+}
+
+func MakeBlockchain() *Blockchain {
 	chain := new(Blockchain)
-	chain.createGenesis()
+	genesis := NewBlock("Genesis Block", []byte{})
+	chain.Blocks = []*Block{genesis}
 	return chain
 }
 
 func main() {
-	blockchain := makeBlockchain()
-	fmt.Printf("%#v\n", *blockchain)
+	blockchain := MakeBlockchain()
+
+	for i := 0; i < 5; i++ {
+		blockchain.Blocks = append(blockchain.Blocks, NewBlock("abc", []byte{123, 3}))
+	}
+
+	s, _ := json.Marshal(*blockchain)
+	fmt.Println(string(s))
+
 }
